@@ -16,6 +16,17 @@ def get_requirements():
             requirements.append(line.strip())
     return requirements
 
+extensions = [
+    Extension('board',
+        sources=['board.pyx'],
+        language='c',
+        include_dirs=[np.get_include()]
+    ), Extension('mcts',
+        sources=['mcts.pyx'],
+        language='c',
+        include_dirs=[np.get_include()]
+    )]
+
 
 setup(
     name="gomoku-a3c",
@@ -33,15 +44,6 @@ setup(
     install_requires=get_requirements(),
 
     scripts=[],
-    ext_modules=cythonize(Extension(
-        'game',
-        sources=['game.pyx'],
-        language='c',
-        include_dirs=[np.get_include()],
-        library_dirs=[],
-        libraries=[],
-        extra_compile_args=[],
-        extra_link_args=[]
-    )),
+    ext_modules=cythonize(extensions),
     cmdclass={'build_ext': build_ext}
 )

@@ -2,12 +2,17 @@ width = 8
 height = 8
 BLACK = -1
 WHITE = 1
-HALF = 0
+TIE = 0
+EMPTY = 0
 NOTHING = 2
 COLOR = {
     BLACK: 'Black',
     WHITE: 'White',
-    HALF: 'Half'
+    TIE: 'Tie'
 }
 MODEL_FILE = 'data/model.h5'
 MAX_EPISODE = 10000
+REWARD_GAMMA = 0.99
+BUFFER_LENGTH = 10000
+ENTROPY_BETA = 0.01
+BATCH_SIZE = 512
