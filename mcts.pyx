@@ -1,10 +1,7 @@
 import copy
-from operator import itemgetter
-from config import *
 import numpy as np
 cimport numpy as np
 cimport cython
-import math
 
 cdef double MAX_VALUE = 9999.
 
@@ -23,6 +20,7 @@ cdef class Node(object):
         self._P = prior_p
 
     cdef void expand(self, object action_props):
+        """ 使用各个 action 以及对应的 probability 扩展下一层结点 """
         for action, prob in action_props:
             if action not in self.children:
                 self.children[action] = Node(self, prob)
@@ -54,17 +52,21 @@ cdef class Node(object):
         self.update(leaf_value)
 
     cdef double get_value(self, double c_puct):
+        """ 获取当前值 """
         self._u = (c_puct * self._P * np.sqrt(self.parent.n_visits) / (1 + self.n_visits))
         return self._Q + self._u
 
     cdef bint is_leaf(self):
+        """ 判断是否为叶子结点 """
         return self.children == {}
 
     cdef bint is_root(self):
+        """ 判断是否为根结点 """
         return self.parent is None
 
 
 cdef class MCTS(object):
+    """ Monte Carlo Tree Search Algorithm """
     cdef Node _root
     cdef object _policy
     cdef double _c_puct
@@ -80,11 +82,11 @@ cdef class MCTS(object):
         cdef int player
         cdef Node node = self._root
         while not node.is_leaf():
-            player = state.curr_player
             assert len(state.availables) == len(node.children)
             action, node = node.select(self._c_puct)
             state.move_to(loc=action)
 
+        player = state.curr_player
         action_probs, leaf_value = self._policy(state)
         is_end, winner = state.game_end()
         if not is_end:
@@ -96,6 +98,7 @@ cdef class MCTS(object):
         node.update_recursive(-leaf_value)
 
     cdef int _evaluate_rollout(self, object state, limit=1000):
+        """ 根据当前状态反复随机落子，获取当前局结束时的 Reward """
         cdef int player = state.curr_player
         for i in range(limit):
             is_end, winner = state.game_end()
@@ -110,6 +113,8 @@ cdef class MCTS(object):
         return winner * player
 
     def get_move(self, state):
+        """ 根据当前局势进行推演，根据结果选取访问次数最高的 action
+        如果访问次数相同则用 value 排序 """
         for _ in range(self._n_playout):
             state_copy = copy.deepcopy(state)
             self._playout(state_copy)
@@ -134,6 +139,7 @@ cdef class MCTS(object):
         return max_action
 
     def get_move_probs(self, state, temp=1e-3):
+        """ 根据当前局势进行推演，根据结果获得 action 以及其对应的 probability """
         for n in range(self._n_playout):
             state_copy = copy.deepcopy(state)
             self._playout(state_copy)
@@ -146,6 +152,7 @@ cdef class MCTS(object):
         return acts, act_probs
 
     def update_with_move(self, last_move):
+        """ 根据 action 更新至子结点，如果 action 为 -1，则重置搜索树 """
         if last_move in self._root.children:
             self._root = self._root.children[last_move]
             self._root.parent = None

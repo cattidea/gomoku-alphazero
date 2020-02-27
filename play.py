@@ -68,26 +68,12 @@ class DataBuffer(deque):
         play_data = list(zip(self.cache[BLACK].states, self.cache[BLACK].mcts_probs, discounted_rewards[BLACK])) + \
                     list(zip(self.cache[WHITE].states, self.cache[WHITE].mcts_probs, discounted_rewards[WHITE]))
 
-        play_data = self.augment_and_append(play_data)
+        self.extend(play_data)
         self.clear_cache()
-
-    def augment_and_append(self, play_data):
-        for state, mcts_prob, reward in play_data:
-            if mcts_prob is None:
-                continue
-            for num_revo in range(4):
-                for is_flip in (True, False):
-                    state_aug = np.rot90(state, num_revo)
-                    mcts_prob_aug = mcts_prob.reshape(width, height)
-                    mcts_prob_aug = np.rot90(mcts_prob_aug, num_revo)
-                    if is_flip:
-                        state_aug = np.flip(state_aug)
-                        mcts_prob_aug = np.flip(mcts_prob_aug)
-                    mcts_prob_aug = mcts_prob_aug.flatten()
-                    self.append((state_aug, mcts_prob_aug, reward))
 
 
 class Player():
+    """ 玩家基类 """
 
     def __init__(self):
         self.ui = None
@@ -100,38 +86,17 @@ class Player():
     def __call__(self, board, **kwargs):
         raise NotImplementedError
 
+    def reset_player(self):
+        pass
+
     @staticmethod
     def move_to_location(loc):
-        x, y = loc // width, loc % width
-        return x, y
-
-
-class Computer(Player):
-
-    def __init__(self, weights=None, prob=False):
-        super().__init__()
-        self.model = ActorCriticModel()
-        self.prob = prob
-        if weights is not None:
-            self.model.build(input_shape=(None, width, height, 1))
-            self.model.load_weights(weights)
-
-    def __call__(self, board, **kwargs):
-        curr_state = np.expand_dims(board.state, axis=0)
-
-        logits, _ = self.model(tf.convert_to_tensor(
-            curr_state, dtype=tf.float32))
-        mask = tf.reshape(curr_state == 0, (width*height, ))
-        logits = tf.where(mask, logits, -np.inf)
-        probs = tf.nn.softmax(logits)
-
-        action = np.random.choice(
-            height*width, p=probs.numpy()[0]) if self.prob else np.argmax(probs)
-        x, y = self.move_to_location(action)
+        x, y = loc // WIDTH, loc % WIDTH
         return x, y
 
 
 class MCTSPlayer(Player):
+    """ 纯 MCTS 玩家 """
 
     def __init__(self, c_puct=5, n_playout=2000):
         super().__init__()
@@ -150,10 +115,12 @@ class MCTSPlayer(Player):
 
 
 class MCTSA3CPlayer(Player):
+    """ AlphaZero 玩家 """
+
     def __init__(self, weights=None, c_puct=5, n_playout=2000):
         self.model = ActorCriticModel()
         if weights is not None:
-            self.model.build(input_shape=(None, width, height, 4))
+            self.model.build(input_shape=(None, WIDTH, HEIGHT, CHANNELS))
             self.model.load_weights(weights)
         self.mcts = MCTS(self.model.policy_value_fn, c_puct, n_playout)
 
@@ -164,7 +131,6 @@ class MCTSA3CPlayer(Player):
         sensible_moves = board.availables
         move_probs = np.zeros(board.width*board.height)
         assert len(sensible_moves) > 0
-        state = board.state
         acts, probs = self.mcts.get_move_probs(board, temp)
         move_probs[list(acts)] = probs
         if is_selfplay:
@@ -182,6 +148,7 @@ class MCTSA3CPlayer(Player):
 
 
 class Human(Player):
+    """ 人类玩家 """
 
     def __init__(self):
         super().__init__()
@@ -189,7 +156,7 @@ class Human(Player):
     def __call__(self, board, **kwargs):
         while True:
             x, y = self.ui.input()
-            if x >= 0 and x < width and y >= 0 and y < height and \
+            if x >= 0 and x < WIDTH and y >= 0 and y < HEIGHT and \
                     board.data[x, y] == 0:
                 return x, y, None
 
@@ -200,20 +167,28 @@ class Game():
         self.player1 = player1
         self.player2 = player2
         self.ui = ui
-        self.board = Board((width, height))
+        self.board = Board((WIDTH, HEIGHT), n_in_row=N_IN_ROW)
         self.data_buffer = DataBuffer(maxlen=BUFFER_LENGTH)
         self.player1.bind(BLACK, self.data_buffer, ui)
         self.player2.bind(WHITE, self.data_buffer, ui)
 
-    def play(self, is_selfplay=False):
+    def switch_players(self):
+        self.player1, self.player2 = self.player2, self.player1
+        self.player1.color, self.player2.color = self.player2.color, self.player1.color
+
+    def play(self, is_selfplay=False, reverse=False):
         if is_selfplay:
             assert self.player1 is self.player2
         board = self.board
         board.new_game()
         self.ui.reset()
+        self.player1.reset_player()
+        self.player2.reset_player()
         while True:
             for player in (self.player1, self.player2):
-                x, y, move_probs = player(board, is_selfplay=is_selfplay)
+                temp = 1.0 if is_selfplay else 1e-3
+                x, y, move_probs = player(
+                    board, is_selfplay=is_selfplay, temp=temp)
                 if is_selfplay:
                     self.data_buffer.collect(
                         board.curr_player, board.state, move_probs)
@@ -239,12 +214,12 @@ class Game():
         self.ui.game_start(loop)
 
 
-def get_players(mode_str, prob):
+def get_players(mode_str):
     weights = MODEL_FILE
     modes = mode_str.lower().split('v')
     players = []
     for mode in modes:
-        players.append(Human() if mode[0] == 'p' else Computer(weights, prob))
+        players.append(Human() if mode[0] == 'p' else MCTSA3CPlayer(weights))
     return players
 
 
@@ -254,13 +229,11 @@ if __name__ == '__main__':
                         'pvp', 'pve', 'evp', 'eve'], help='恢复模型继续训练')
     parser.add_argument('--ui', default='gui', choices=[
                         'gui', 'terminal', 'no'], help='UI 类型')
-    parser.add_argument('--prob', action='store_true', help='机器按概率选取操作')
     args = parser.parse_args()
     ui = {'gui': GUI, 'terminal': TerminalUI, 'no': HeadlessUI}[args.ui]()
-    player1, player2 = get_players(args.mode, args.prob)
-    player1, player2 = Human(), MCTSPlayer(c_puct=5, n_playout=1000)
-    # player1, player2 = MCTSA3CPlayer(c_puct=5, n_playout=10), MCTSA3CPlayer(c_puct=5, n_playout=10)
-    # player1 = player2 = MCTSA3CPlayer(c_puct=5, n_playout=10)
-    # player1, player2 = MCTSPlayer(c_puct=5, n_playout=10), MCTSPlayer(c_puct=5, n_playout=10)
+    player1, player2 = get_players(args.mode)
+    # weights = MODEL_FILE
+    # player1, player2 = Human(), MCTSA3CPlayer(weights=weights, c_puct=5, n_playout=400)
+    # player1, player2 = Human(), MCTSPlayer(c_puct=5, n_playout=1000)
     game = Game(player1, player2, ui)
     game.start(is_selfplay=False)

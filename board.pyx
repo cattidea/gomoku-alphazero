@@ -50,12 +50,14 @@ cdef class Board():
         return 0
 
     def new_game(self):
+        """ 开始一场新的游戏 """
         self.curr_player = BLACK
         self.num_chess = 0
         self.latest_point = (-1, -1)
         self.data[:] = 0
 
     def move_to(self, x=None, y=None, loc=None):
+        """ 将下一个子落在 (x, y) 位置，或者落在第 loc 个位置 """
         if loc is not None:
             x, y = loc // self.height, loc % self.height
         assert x >= 0 and x < self.width and y >= 0 and y < self.height
@@ -66,6 +68,7 @@ cdef class Board():
         self.curr_player = -self.curr_player
 
     def game_end(self):
+        """ 判断游戏是否已结束，返回 is_end, winner """
         latest_player = -self.curr_player
         if self.latest_point[0] != -1:
             x, y = self.latest_point
@@ -77,18 +80,20 @@ cdef class Board():
 
     @property
     def availables(self):
+        """ 当前所有可落子位置 """
         availables = np.where(self.data.reshape((self.width*self.height, )) == 0)[0]
         return availables
 
     @property
     def state(self):
+        """ 当前棋盘状态 """
         curr_state = np.zeros((self.width, self.height, 4), np.int8)
         # 通道一：我方局势
         curr_state[:, :, 0] = self.data == self.curr_player
         # 通道二：敌方局势
         curr_state[:, :, 1] = self.data == -self.curr_player
         # 通道三：上次落子位置
-        if self.latest_point is not None:
+        if self.latest_point[0] != -1:
             curr_state[self.latest_point[0], self.latest_point[1], 2] = 1
         # 通道四：当前玩家是否为先手玩家（是则全为 1，否则全为 0）
         if self.curr_player == BLACK:

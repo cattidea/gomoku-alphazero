@@ -58,6 +58,8 @@ class BinaryScaler():
 
 
 class UI():
+    """ UI 基类 """
+
     def __init__(self):
         pass
 
@@ -78,14 +80,14 @@ class UI():
 
 
 class GUI(UI):
+    """ 棋盘图形 UI """
     name = 'GUI'
     POINT_QUEUE = queue.Queue()
-    """ 棋盘图形 UI """
 
     def __init__(self):
         super().__init__()
         self.tk = Tk()
-        self.tk.geometry("{}x{}".format(width*CW+100, height*CW+100))
+        self.tk.geometry("{}x{}".format(WIDTH*CW+100, HEIGHT*CW+100))
         self.bc = None
         self.canvas = None
         self.figures = {'chess': [], 'flag': [], 'board': []}
@@ -94,9 +96,9 @@ class GUI(UI):
         self.last_move = ()
 
     def _init_canvas(self):
-        canvas_width, canvas_height = width*CW, height*CW
+        canvas_width, canvas_height = WIDTH*CW, HEIGHT*CW
         bc = BinaryScaler(0, 0, canvas_width,
-                          canvas_height).bind(-1, height, width, -1)
+                          canvas_height).bind(-1, HEIGHT, WIDTH, -1)
         bc_ = bc.inverse()
         self.bc = bc
         self.canvas_width, self.canvas_height = canvas_width, canvas_height
@@ -122,10 +124,10 @@ class GUI(UI):
     def _init_board(self):
         bc_ = self.bc.inverse()
         canvas = self.canvas
-        for i in range(height):
-            self._line(0, i, width-1, i, name='board')
-        for i in range(width):
-            self._line(i, 0, i, height-1, name='board')
+        for i in range(HEIGHT):
+            self._line(0, i, WIDTH-1, i, name='board')
+        for i in range(WIDTH):
+            self._line(i, 0, i, HEIGHT-1, name='board')
         canvas.place(x=50, y=50, anchor='nw')
 
     def _circle(self, x, y, radius=R, color='blue', name='chess'):
@@ -172,6 +174,7 @@ class GUI(UI):
 
 
 class TerminalUI(UI):
+    """ 终端游戏 UI """
     name = 'TerminalUI'
 
     def __init__(self):
@@ -179,18 +182,19 @@ class TerminalUI(UI):
         self._init_board()
 
     def _init_board(self):
-        for i in range(width):
-            for j in range(height):
+        for i in range(WIDTH):
+            for j in range(HEIGHT):
                 print('\t_', end='')
             print()
 
     def render(self, board, last_move):
-        for i in range(width):
-            for j in range(height):
+        for i in range(WIDTH):
+            for j in range(HEIGHT):
                 print('\t{}'.format(
                     {BLACK: 'x', WHITE: 'o', EMPTY: '_'}[board[i, j]]
                 ), end='')
             print()
+        print()
 
     def message(self, message):
         print(message)
@@ -205,6 +209,7 @@ class TerminalUI(UI):
 
 
 class HeadlessUI(UI):
+    """ 无 UI """
     name = 'HeadlessUI'
 
     def __init__(self):
