@@ -1,4 +1,4 @@
-# Gomoku-A3C
+# Gomoku-AlphaZero
 
 ## Build
 
@@ -21,4 +21,4 @@ python play.py
 ## References
 
 - [AlpahZero_Gomoku](https://github.com/junxiaosong/AlphaZero_Gomoku/)
-- [TensorFlow Models A3C](https://github.com/tensorflow/models/blob/master/research/a3c_blogpost/a3c_cartpole.py)
+- [TensorFlow Models AlphaZero](https://github.com/tensorflow/models/blob/master/research/a3c_blogpost/a3c_cartpole.py)

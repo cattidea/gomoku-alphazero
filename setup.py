@@ -29,14 +29,14 @@ extensions = [
 
 
 setup(
-    name="gomoku-a3c",
+    name="gomoku-alphazero",
     version="0.0.0",
     keywords=("python", "tensorflow", "deeplearning", "gomoku"),
-    description="Gomoku AI with A3C",
+    description="Gomoku AI with AlphaZero",
     long_description=get_long_description(),
     license="MIT",
 
-    url="https://github.com/SigureMo/gomoku-a3c",
+    url="https://github.com/SigureMo/gomoku-alphazero",
     author="SigureMo",
     author_email="sigure_mo@163.com",
 

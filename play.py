@@ -6,7 +6,7 @@ from collections import deque
 
 from config import *
 from board import Board
-from policy import ActorCriticModel, mean_policy_value_fn
+from policy import PolicyValueModel, mean_policy_value_fn
 from ui import GUI, TerminalUI, HeadlessUI
 from mcts import MCTS
 
@@ -66,7 +66,8 @@ class DataBuffer(deque):
         }
 
         play_data = list(zip(self.cache[BLACK].states, self.cache[BLACK].mcts_probs, discounted_rewards[BLACK])) + \
-                    list(zip(self.cache[WHITE].states, self.cache[WHITE].mcts_probs, discounted_rewards[WHITE]))
+            list(zip(self.cache[WHITE].states,
+                     self.cache[WHITE].mcts_probs, discounted_rewards[WHITE]))
 
         self.extend(play_data)
         self.clear_cache()
@@ -114,11 +115,11 @@ class MCTSPlayer(Player):
         return x, y, None
 
 
-class MCTSA3CPlayer(Player):
+class MCTSAlphaZeroPlayer(Player):
     """ AlphaZero 玩家 """
 
     def __init__(self, weights=None, c_puct=5, n_playout=2000):
-        self.model = ActorCriticModel()
+        self.model = PolicyValueModel()
         if weights is not None:
             self.model.build(input_shape=(None, WIDTH, HEIGHT, CHANNELS))
             self.model.load_weights(weights)
@@ -219,12 +220,13 @@ def get_players(mode_str):
     modes = mode_str.lower().split('v')
     players = []
     for mode in modes:
-        players.append(Human() if mode[0] == 'p' else MCTSA3CPlayer(weights))
+        players.append(Human() if mode[0] ==
+                       'p' else MCTSAlphaZeroPlayer(weights))
     return players
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Gomoku A3C')
+    parser = argparse.ArgumentParser(description='Gomoku AlphaZero')
     parser.add_argument('--mode', default='pve', choices=[
                         'pvp', 'pve', 'evp', 'eve'], help='恢复模型继续训练')
     parser.add_argument('--ui', default='gui', choices=[
@@ -233,7 +235,7 @@ if __name__ == '__main__':
     ui = {'gui': GUI, 'terminal': TerminalUI, 'no': HeadlessUI}[args.ui]()
     player1, player2 = get_players(args.mode)
     # weights = MODEL_FILE
-    # player1, player2 = Human(), MCTSA3CPlayer(weights=weights, c_puct=5, n_playout=400)
-    # player1, player2 = Human(), MCTSPlayer(c_puct=5, n_playout=1000)
+    # player1, player2 = Human(), MCTSAlphaZeroPlayer(weights=weights, c_puct=5, n_playout=400)
+    # player1, player2 = Human(), MCTSPlayer(c_puct=5, n_playout=15000)
     game = Game(player1, player2, ui)
     game.start(is_selfplay=False)

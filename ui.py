@@ -88,6 +88,7 @@ class GUI(UI):
         super().__init__()
         self.tk = Tk()
         self.tk.geometry("{}x{}".format(WIDTH*CW+100, HEIGHT*CW+100))
+        self.tk.title('Gomoku')
         self.bc = None
         self.canvas = None
         self.figures = {'chess': [], 'flag': [], 'board': []}
