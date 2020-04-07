@@ -1,3 +1,5 @@
+import tensorflow as tf
+
 # 棋盘属性
 WIDTH = 6
 HEIGHT = 6
@@ -30,3 +32,9 @@ ENTROPY_BETA = 0.01
 BATCH_SIZE = 512
 EPOCHS = 5
 CHECK_FREQ = 50
+
+# GPU Config
+gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
+
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(device=gpu, enable=True)

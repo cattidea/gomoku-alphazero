@@ -10,8 +10,6 @@ from policy import PolicyValueModel, mean_policy_value_fn
 from ui import GUI, TerminalUI, HeadlessUI
 from mcts import MCTS
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-
 
 class Memory():
     def __init__(self):

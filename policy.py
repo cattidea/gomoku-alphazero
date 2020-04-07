@@ -51,7 +51,7 @@ class PolicyValueModel(PolicyValueModelBase):
         ])
 
     @tf.function
-    def call(self, inputs):
+    def call(self, inputs, training=None):
         x = self.base_net(inputs)
         policy = self.policy(x)
         values = self.values(x)
@@ -110,7 +110,7 @@ class PolicyValueModelResNet(PolicyValueModelBase):
         ])
 
     @tf.function
-    def call(self, inputs):
+    def call(self, inputs, training=None):
         x = inputs
         x = self.preprocess(x)
         x = tf.keras.layers.add([x, self.res_1(x)])

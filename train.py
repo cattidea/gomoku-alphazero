@@ -121,7 +121,7 @@ class Worker():
                     [data[2] for data in mini_batch], axis=-1), dtype=tf.float32)
 
                 with tf.GradientTape() as tape:
-                    policy, values = self.model(states_batch)
+                    policy, values = self.model(states_batch, training=True)
 
                     total_loss = self.loss_object(
                         mcts_probs=mcts_probs_batch,
