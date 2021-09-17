@@ -114,16 +114,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Node.js
-node_modules/
-yarn.lock
-package.json
-.huskyrc
-commitlint.config.js
-
-# draft
-draft/
-
 # IDEs/editors
 .vscode/
 .idea/
@@ -135,10 +125,6 @@ draft/
 
 # data
 /data/
-
-# test
-/tests/
-test.py
 
 # Cython
 /board.c

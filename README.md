@@ -4,6 +4,8 @@
 
 ``` bash
 python setup.py build_ext -i
+rm mcts.c
+rm board.c
 ```
 
 ## Train
