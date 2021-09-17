@@ -13,7 +13,7 @@ EMPTY = 0
 
 # 棋局结果
 WIN = 1
-LOSS = -1
+LOSE = -1
 TIE = 0
 NOTHING = 2
 COLOR = {

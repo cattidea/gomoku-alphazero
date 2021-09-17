@@ -62,7 +62,7 @@ class AlphaZeroMetric():
         mcts_alphazero_player.model.set_weights(weights)
         mcts_player = MCTSPlayer(c_puct=5, n_playout=self.n_playout_mcts)
         game = Game(mcts_alphazero_player, mcts_player, HeadlessUI())
-        scores = {WIN: 0, LOSS: 0, TIE: 0}
+        scores = {WIN: 0, LOSE: 0, TIE: 0}
         score = 0.
         for idx in range(n_games):
             winner = game.play(is_selfplay=False)
@@ -74,8 +74,8 @@ class AlphaZeroMetric():
             ), end='\r')
         for key in scores:
             score += key * scores[key]
-        print('[Test] Episode: {:5d}, MCTS n_playout: {:6d}, Win: {:2d}, Loss: {:2d}, Tie: {:2d}, Score: {:.2f} '.format(
-            episode + 1, self.n_playout_mcts, scores[WIN], scores[LOSS], scores[TIE], score
+        print('[Test] Episode: {:5d}, MCTS n_playout: {:6d}, Win: {:2d}, Lose: {:2d}, Tie: {:2d}, Score: {:.2f} '.format(
+            episode + 1, self.n_playout_mcts, scores[WIN], scores[LOSE], scores[TIE], score
         ))
         if score > self.best_score:
             self.best_score = score
