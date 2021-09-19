@@ -6,7 +6,7 @@ from collections import deque
 
 from config import *
 from board import Board
-from policy import PolicyValueModel, mean_policy_value_fn
+from policy import PolicyValueModelResNet as PolicyValueModel, mean_policy_value_fn
 from ui import GUI, TerminalUI, HeadlessUI
 from mcts import MCTS
 
@@ -64,8 +64,7 @@ class DataBuffer(deque):
         }
 
         play_data = list(zip(self.cache[BLACK].states, self.cache[BLACK].mcts_probs, discounted_rewards[BLACK])) + \
-            list(zip(self.cache[WHITE].states,
-                     self.cache[WHITE].mcts_probs, discounted_rewards[WHITE]))
+                    list(zip(self.cache[WHITE].states, self.cache[WHITE].mcts_probs, discounted_rewards[WHITE]))
 
         self.extend(play_data)
         self.clear_cache()

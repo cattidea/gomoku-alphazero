@@ -1,10 +1,10 @@
 import tensorflow as tf
 
 # 棋盘属性
-WIDTH = 6
-HEIGHT = 6
+WIDTH = 8
+HEIGHT = 8
 CHANNELS = 4
-N_IN_ROW = 4
+N_IN_ROW = 5
 
 # 棋盘落子状态
 BLACK = -1
@@ -23,7 +23,7 @@ COLOR = {
 }
 
 # 训练超参数
-MODEL_FILE = 'data/model.h5'
+MODEL_FILE = f'data/model-{WIDTH}x{HEIGHT}#{N_IN_ROW}.h5'
 LEARNING_RATE = 3e-4
 MAX_EPISODE = 10000
 REWARD_GAMMA = 0.99
