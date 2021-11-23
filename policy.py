@@ -72,7 +72,7 @@ class PolicyValueModel(PolicyValueModelBase):
                     kernel_regularizer=tf.keras.regularizers.l2(l2_const),
                 ),
                 tf.keras.layers.Flatten(),
-                tf.keras.layers.Dense(64, kernel_regularizer=tf.keras.regularizers.l2(l2_const)),
+                tf.keras.layers.Dense(64, kernel_regularizer=tf.keras.regularizers.l2(l2_const), activation="relu"),
                 tf.keras.layers.Dense(1, activation="tanh", kernel_regularizer=tf.keras.regularizers.l2(l2_const)),
             ]
         )
@@ -144,7 +144,7 @@ class PolicyValueModelResNet(PolicyValueModelBase):
             [
                 tf.keras.layers.Conv2D(2, 1, strides=1, padding="same", activation="relu"),
                 tf.keras.layers.Flatten(),
-                tf.keras.layers.Dense(64),
+                tf.keras.layers.Dense(64, activation="relu"),
                 tf.keras.layers.Dense(1, activation="tanh"),
             ]
         )
