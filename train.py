@@ -1,15 +1,11 @@
-import os
-import queue
-import time
 import argparse
 import random
 
 import numpy as np
 import tensorflow as tf
 
-from policy import PolicyValueModel, AlphaZeroError
+from policy import AlphaZeroError
 from config import *
-from board import Board
 from play import Game, MCTSAlphaZeroPlayer, MCTSPlayer
 from ui import HeadlessUI
 

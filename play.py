@@ -1,17 +1,17 @@
-import os
 import argparse
-import numpy as np
-import tensorflow as tf
 from collections import deque
 
-from config import *
+import numpy as np
 from board import Board
-from policy import PolicyValueModelResNet as PolicyValueModel, mean_policy_value_fn
-from ui import GUI, TerminalUI, HeadlessUI
 from mcts import MCTS
 
+from config import *
+from policy import PolicyValueModelResNet as PolicyValueModel
+from policy import mean_policy_value_fn
+from ui import GUI, HeadlessUI, TerminalUI
 
-class Memory():
+
+class Memory:
     def __init__(self):
         self.states = []
         self.mcts_probs = []
@@ -31,10 +31,7 @@ class Memory():
 class DataBuffer(deque):
     def __init__(self, maxlen):
         super().__init__(maxlen=maxlen)
-        self.cache = {
-            BLACK: Memory(),
-            WHITE: Memory()
-        }
+        self.cache = {BLACK: Memory(), WHITE: Memory()}
 
     def clear_cache(self):
         self.cache[BLACK].clear()
@@ -46,7 +43,7 @@ class DataBuffer(deque):
     def get_discounted_rewards(self, player, winner):
         if winner == TIE:
             return [0 for _ in range(self.cache[player].cnt)]
-        reward_sum = 0.
+        reward_sum = 0.0
         discounted_rewards = []
         rewards = [0 for _ in range(self.cache[player].cnt)]
         rewards[0] = player * winner
@@ -60,18 +57,19 @@ class DataBuffer(deque):
 
         discounted_rewards = {
             BLACK: self.get_discounted_rewards(BLACK, winner),
-            WHITE: self.get_discounted_rewards(WHITE, winner)
+            WHITE: self.get_discounted_rewards(WHITE, winner),
         }
 
-        play_data = list(zip(self.cache[BLACK].states, self.cache[BLACK].mcts_probs, discounted_rewards[BLACK])) + \
-                    list(zip(self.cache[WHITE].states, self.cache[WHITE].mcts_probs, discounted_rewards[WHITE]))
+        play_data = list(zip(self.cache[BLACK].states, self.cache[BLACK].mcts_probs, discounted_rewards[BLACK])) + list(
+            zip(self.cache[WHITE].states, self.cache[WHITE].mcts_probs, discounted_rewards[WHITE])
+        )
 
         self.extend(play_data)
         self.clear_cache()
 
 
-class Player():
-    """ 玩家基类 """
+class Player:
+    """玩家基类"""
 
     def __init__(self):
         self.ui = None
@@ -94,7 +92,7 @@ class Player():
 
 
 class MCTSPlayer(Player):
-    """ 纯 MCTS 玩家 """
+    """纯 MCTS 玩家"""
 
     def __init__(self, c_puct=5, n_playout=2000):
         super().__init__()
@@ -113,7 +111,7 @@ class MCTSPlayer(Player):
 
 
 class MCTSAlphaZeroPlayer(Player):
-    """ AlphaZero 玩家 """
+    """AlphaZero 玩家"""
 
     def __init__(self, weights=None, c_puct=5, n_playout=2000):
         self.model = PolicyValueModel()
@@ -127,16 +125,12 @@ class MCTSAlphaZeroPlayer(Player):
 
     def __call__(self, board, is_selfplay=False, temp=1e-3):
         sensible_moves = board.availables
-        move_probs = np.zeros(board.width*board.height)
+        move_probs = np.zeros(board.width * board.height)
         assert len(sensible_moves) > 0
         acts, probs = self.mcts.get_move_probs(board, temp)
         move_probs[list(acts)] = probs
         if is_selfplay:
-            move = np.random.choice(
-                acts,
-                p=0.75*probs + 0.25 *
-                np.random.dirichlet(0.3*np.ones(len(probs)))
-            )
+            move = np.random.choice(acts, p=0.75 * probs + 0.25 * np.random.dirichlet(0.3 * np.ones(len(probs))))
             self.mcts.update_with_move(move)
         else:
             move = np.random.choice(acts, p=probs)
@@ -146,7 +140,7 @@ class MCTSAlphaZeroPlayer(Player):
 
 
 class Human(Player):
-    """ 人类玩家 """
+    """人类玩家"""
 
     def __init__(self):
         super().__init__()
@@ -154,13 +148,11 @@ class Human(Player):
     def __call__(self, board, **kwargs):
         while True:
             x, y = self.ui.input()
-            if x >= 0 and x < WIDTH and y >= 0 and y < HEIGHT and \
-                    board.data[x, y] == 0:
+            if x >= 0 and x < WIDTH and y >= 0 and y < HEIGHT and board.data[x, y] == 0:
                 return x, y, None
 
 
-class Game():
-
+class Game:
     def __init__(self, player1, player2, ui=None):
         self.player1 = player1
         self.player2 = player2
@@ -185,21 +177,15 @@ class Game():
         while True:
             for player in (self.player1, self.player2):
                 temp = 1.0 if is_selfplay else 1e-3
-                x, y, move_probs = player(
-                    board, is_selfplay=is_selfplay, temp=temp)
+                x, y, move_probs = player(board, is_selfplay=is_selfplay, temp=temp)
                 if is_selfplay:
-                    self.data_buffer.collect(
-                        board.curr_player, board.state, move_probs)
+                    self.data_buffer.collect(board.curr_player, board.state, move_probs)
                 board.move_to(x, y)
                 is_end, winner = board.game_end()
                 self.ui.render(board.data, last_move=(x, y))
                 if not is_end:
                     continue
-                message = {
-                    BLACK: '黑棋胜！',
-                    WHITE: '白棋胜！',
-                    TIE: '平局！'
-                }[winner]
+                message = {BLACK: "黑棋胜！", WHITE: "白棋胜！", TIE: "平局！"}[winner]
                 self.ui.message(message)
                 if is_selfplay:
                     self.data_buffer.end_episode(winner)
@@ -209,27 +195,25 @@ class Game():
         def loop():
             while True:
                 self.play(is_selfplay=is_selfplay)
+
         self.ui.game_start(loop)
 
 
 def get_players(mode_str):
     weights = MODEL_FILE
-    modes = mode_str.lower().split('v')
+    modes = mode_str.lower().split("v")
     players = []
     for mode in modes:
-        players.append(Human() if mode[0] ==
-                       'p' else MCTSAlphaZeroPlayer(weights))
+        players.append(Human() if mode[0] == "p" else MCTSAlphaZeroPlayer(weights))
     return players
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Gomoku AlphaZero')
-    parser.add_argument('--mode', default='pve', choices=[
-                        'pvp', 'pve', 'evp', 'eve'], help='恢复模型继续训练')
-    parser.add_argument('--ui', default='gui', choices=[
-                        'gui', 'terminal', 'no'], help='UI 类型')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Gomoku AlphaZero")
+    parser.add_argument("--mode", default="pve", choices=["pvp", "pve", "evp", "eve"], help="恢复模型继续训练")
+    parser.add_argument("--ui", default="gui", choices=["gui", "terminal", "no"], help="UI 类型")
     args = parser.parse_args()
-    ui = {'gui': GUI, 'terminal': TerminalUI, 'no': HeadlessUI}[args.ui]()
+    ui = {"gui": GUI, "terminal": TerminalUI, "no": HeadlessUI}[args.ui]()
     player1, player2 = get_players(args.mode)
     # weights = MODEL_FILE
     # player1, player2 = Human(), MCTSAlphaZeroPlayer(weights=weights, c_puct=5, n_playout=400)
