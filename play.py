@@ -1,11 +1,12 @@
 import argparse
 from collections import deque
 
+import h5py
 import numpy as np
-from board import Board
-from mcts import MCTS
 
+from board import Board
 from config import *
+from mcts import MCTS
 from policy import PolicyValueModelResNet as PolicyValueModel
 from policy import mean_policy_value_fn
 from ui import GUI, HeadlessUI, TerminalUI
@@ -66,6 +67,22 @@ class DataBuffer(deque):
 
         self.extend(play_data)
         self.clear_cache()
+
+    def save(self, filename):
+        states, mcts_probs, rewards = zip(*self)
+        f = h5py.File(filename, "w")
+        f["states"] = states
+        f["mcts_probs"] = mcts_probs
+        f["rewards"] = rewards
+        f.close()
+
+    def load(self, filename):
+        f = h5py.File(filename, "r")
+        states = f["states"]
+        mcts_probs = f["mcts_probs"]
+        rewards = f["rewards"]
+        self.extend(zip(states, mcts_probs, rewards))
+        f.close()
 
 
 class Player:
