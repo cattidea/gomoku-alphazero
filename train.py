@@ -95,6 +95,7 @@ class Worker:
         self.buffer_file = buffer_file
         self.board_shape = board_shape
         self.width, self.height = board_shape
+        self.freeze_cnn = freeze_cnn
         self.player = MCTSAlphaZeroPlayer(c_puct=5, n_playout=400, board_shape=board_shape)
         self.model = self.player.model
         self.model.build(input_shape=(None, *board_shape, CHANNELS))
@@ -113,10 +114,14 @@ class Worker:
                 print("Loaded buffer ({} items) successfully.".format(len(self.game.data_buffer)))
 
         if freeze_cnn:
-            for layer in self.model.cnn_layers:
-                layer.trainable = False
+            self.freeze_cnn_layers()
 
         self.model.summary()
+
+    def freeze_cnn_layers(self):
+        if self.freeze_cnn:
+            for layer in self.model.cnn_layers:
+                layer.trainable = False
 
     def run(self):
         for episode in range(MAX_EPISODE):
@@ -162,8 +167,11 @@ class Worker:
                 self.mean_loss.reset_states()
                 is_best_score = self.metric(self.model.get_weights(), episode)
                 if is_best_score:
+                    self.model.trainable = True  # 保存参数前需要预先恢复可训练
                     self.model.save_weights(f"data/model-{self.width}x{self.height}#{N_IN_ROW}.h5")
                     self.game.data_buffer.save(f"data/buffer-{self.width}x{self.height}#{N_IN_ROW}.h5")
+                    if self.freeze_cnn:
+                        self.freeze_cnn_layers()
 
 
 if __name__ == "__main__":
