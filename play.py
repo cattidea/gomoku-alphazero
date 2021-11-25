@@ -1,5 +1,6 @@
 import argparse
 from collections import deque
+from functools import partial
 
 import h5py
 import numpy as np
@@ -88,8 +89,9 @@ class DataBuffer(deque):
 class Player:
     """玩家基类"""
 
-    def __init__(self):
+    def __init__(self, board_shape):
         self.ui = None
+        self.width, self.height = board_shape
 
     def bind(self, color, data_buffer, ui):
         self.color = color
@@ -102,17 +104,16 @@ class Player:
     def reset_player(self):
         pass
 
-    @staticmethod
-    def move_to_location(loc):
-        x, y = loc // WIDTH, loc % WIDTH
+    def move_to_location(self, loc):
+        x, y = loc // self.width, loc % self.height
         return x, y
 
 
 class MCTSPlayer(Player):
     """纯 MCTS 玩家"""
 
-    def __init__(self, c_puct=5, n_playout=2000):
-        super().__init__()
+    def __init__(self, board_shape, c_puct=5, n_playout=2000):
+        super().__init__(board_shape)
         self.mcts = MCTS(mean_policy_value_fn, c_puct, n_playout)
 
     def reset_player(self):
@@ -130,10 +131,11 @@ class MCTSPlayer(Player):
 class MCTSAlphaZeroPlayer(Player):
     """AlphaZero 玩家"""
 
-    def __init__(self, weights=None, c_puct=5, n_playout=2000):
-        self.model = PolicyValueModel()
+    def __init__(self, board_shape, weights=None, c_puct=5, n_playout=2000):
+        super().__init__(board_shape)
+        self.model = PolicyValueModel(*board_shape)
         if weights is not None:
-            self.model.build(input_shape=(None, WIDTH, HEIGHT, CHANNELS))
+            self.model.build(input_shape=(None, *board_shape, CHANNELS))
             self.model.load_weights(weights)
         self.mcts = MCTS(self.model.policy_value_fn, c_puct, n_playout)
 
@@ -159,22 +161,22 @@ class MCTSAlphaZeroPlayer(Player):
 class Human(Player):
     """人类玩家"""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, board_shape):
+        super().__init__(board_shape)
 
     def __call__(self, board, **kwargs):
         while True:
             x, y = self.ui.input()
-            if x >= 0 and x < WIDTH and y >= 0 and y < HEIGHT and board.data[x, y] == 0:
+            if x >= 0 and x < self.width and y >= 0 and y < self.height and board.data[x, y] == 0:
                 return x, y, None
 
 
 class Game:
-    def __init__(self, player1, player2, ui=None):
+    def __init__(self, player1, player2, board_shape, ui=None):
         self.player1 = player1
         self.player2 = player2
         self.ui = ui
-        self.board = Board((WIDTH, HEIGHT), n_in_row=N_IN_ROW)
+        self.board = Board(board_shape, n_in_row=N_IN_ROW)
         self.data_buffer = DataBuffer(maxlen=BUFFER_LENGTH)
         self.player1.bind(BLACK, self.data_buffer, ui)
         self.player2.bind(WHITE, self.data_buffer, ui)
@@ -216,24 +218,55 @@ class Game:
         self.ui.game_start(loop)
 
 
-def get_players(mode_str):
-    weights = MODEL_FILE
+def get_players(
+    mode_str,
+    width,
+    height,
+    weights=MODEL_FILE,
+    ai_type="alphazero",
+    ai_n_playout=2000,
+):
     modes = mode_str.lower().split("v")
     players = []
+    AiType = partial(MCTSAlphaZeroPlayer, weights=weights) if ai_type == "alphazero" else MCTSPlayer
     for mode in modes:
-        players.append(Human() if mode[0] == "p" else MCTSAlphaZeroPlayer(weights))
+        players.append(
+            Human(board_shape=(width, height))
+            if mode[0] == "p"
+            else AiType(n_playout=ai_n_playout, board_shape=(width, height))
+        )
     return players
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gomoku AlphaZero")
-    parser.add_argument("--mode", default="pve", choices=["pvp", "pve", "evp", "eve"], help="恢复模型继续训练")
+    parser.add_argument("--mode", default="pve", choices=["pvp", "pve", "evp", "eve"], help="对战模式（pvp/pve/evp/eve）")
     parser.add_argument("--ui", default="gui", choices=["gui", "terminal", "no"], help="UI 类型")
+    parser.add_argument("--weights", default=MODEL_FILE, help="预训练权重存储位置")
+    parser.add_argument("--width", default=WIDTH, type=int, help="棋盘水平宽度")
+    parser.add_argument("--height", default=HEIGHT, type=int, help="棋盘竖直宽度")
+    parser.add_argument(
+        "--ai-type",
+        default="alphazero",
+        choices=["alphazero", "pure-mcts"],
+        help="AI 类型（alpha-zero/pure-mcts）",
+    )
+    parser.add_argument("--ai-n-playout", default=2000, type=int, help="AI MCTS 推演步数")
     args = parser.parse_args()
-    ui = {"gui": GUI, "terminal": TerminalUI, "no": HeadlessUI}[args.ui]()
-    player1, player2 = get_players(args.mode)
-    # weights = MODEL_FILE
-    # player1, player2 = Human(), MCTSAlphaZeroPlayer(weights=weights, c_puct=5, n_playout=400)
-    # player1, player2 = Human(), MCTSPlayer(c_puct=5, n_playout=15000)
-    game = Game(player1, player2, ui)
+
+    ui = {"gui": GUI, "terminal": TerminalUI, "no": HeadlessUI}[args.ui](board_shape=(args.width, args.height))
+    player1, player2 = get_players(
+        mode_str=args.mode,
+        width=args.width,
+        height=args.height,
+        weights=args.weights,
+        ai_type=args.ai_type,
+        ai_n_playout=args.ai_n_playout,
+    )
+    game = Game(
+        player1,
+        player2,
+        board_shape=(args.width, args.height),
+        ui=ui,
+    )
     game.start(is_selfplay=False)

@@ -12,9 +12,13 @@ class PolicyValueModelBase(tf.keras.Model):
         act_probs = zip(legal_positions, act_probs.numpy()[0][legal_positions])
         return act_probs, value[0]
 
+    @property
+    def cnn_layers(self):
+        raise NotImplementedError()
+
 
 class PolicyValueModel(PolicyValueModelBase):
-    def __init__(self):
+    def __init__(self, width, height):
         super().__init__()
         l2_const = 1e-4
         self.base_net = tf.keras.Sequential(
@@ -57,7 +61,7 @@ class PolicyValueModel(PolicyValueModelBase):
                 ),
                 tf.keras.layers.Flatten(),
                 tf.keras.layers.Dense(
-                    WIDTH * HEIGHT, kernel_regularizer=tf.keras.regularizers.l2(l2_const), activation="softmax"
+                    width * height, kernel_regularizer=tf.keras.regularizers.l2(l2_const), activation="softmax"
                 ),
             ]
         )
@@ -84,9 +88,15 @@ class PolicyValueModel(PolicyValueModelBase):
         values = self.values(x)
         return policy, values
 
+    @property
+    def cnn_layers(self):
+        return [
+            self.base_net,
+        ]
+
 
 class PolicyValueModelResNet(PolicyValueModelBase):
-    def __init__(self):
+    def __init__(self, width, height):
         super().__init__()
         self.preprocess = tf.keras.Sequential(
             [
@@ -137,7 +147,7 @@ class PolicyValueModelResNet(PolicyValueModelBase):
             [
                 tf.keras.layers.Conv2D(4, 1, strides=1, padding="same", activation="relu"),
                 tf.keras.layers.Flatten(),
-                tf.keras.layers.Dense(WIDTH * HEIGHT, activation="softmax"),
+                tf.keras.layers.Dense(width * height, activation="softmax"),
             ]
         )
         self.values = tf.keras.Sequential(
@@ -160,6 +170,16 @@ class PolicyValueModelResNet(PolicyValueModelBase):
         policy = self.policy(x)
         values = self.values(x)
         return policy, values
+
+    @property
+    def cnn_layers(self):
+        return [
+            self.preprocess,
+            self.res_1,
+            self.res_2,
+            self.res_3,
+            self.postprocess,
+        ]
 
 
 def mean_policy_value_fn(board):

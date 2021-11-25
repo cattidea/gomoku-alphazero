@@ -57,8 +57,9 @@ class BinaryScaler:
 class UI:
     """UI 基类"""
 
-    def __init__(self):
-        pass
+    def __init__(self, board_shape):
+        self.board_shape = board_shape
+        self.width, self.height = board_shape
 
     def render(self, board, last_move):
         raise NotImplementedError
@@ -82,10 +83,10 @@ class GUI(UI):
     name = "GUI"
     POINT_QUEUE = queue.Queue()
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, board_shape):
+        super().__init__(board_shape)
         self.tk = Tk()
-        self.tk.geometry("{}x{}".format(WIDTH * CW + 100, HEIGHT * CW + 100))
+        self.tk.geometry("{}x{}".format(self.width * CW + 100, self.height * CW + 100))
         self.tk.title("Gomoku")
         self.bc = None
         self.canvas = None
@@ -95,8 +96,8 @@ class GUI(UI):
         self.last_move = ()
 
     def _init_canvas(self):
-        canvas_width, canvas_height = WIDTH * CW, HEIGHT * CW
-        bc = BinaryScaler(0, 0, canvas_width, canvas_height).bind(-1, HEIGHT, WIDTH, -1)
+        canvas_width, canvas_height = self.width * CW, self.height * CW
+        bc = BinaryScaler(0, 0, canvas_width, canvas_height).bind(-1, self.height, self.width, -1)
         bc_ = bc.inverse()
         self.bc = bc
         self.canvas_width, self.canvas_height = canvas_width, canvas_height
@@ -121,10 +122,10 @@ class GUI(UI):
     def _init_board(self):
         bc_ = self.bc.inverse()
         canvas = self.canvas
-        for i in range(HEIGHT):
-            self._line(0, i, WIDTH - 1, i, name="board")
-        for i in range(WIDTH):
-            self._line(i, 0, i, HEIGHT - 1, name="board")
+        for i in range(self.height):
+            self._line(0, i, self.width - 1, i, name="board")
+        for i in range(self.width):
+            self._line(i, 0, i, self.height - 1, name="board")
         canvas.place(x=50, y=50, anchor="nw")
 
     def _circle(self, x, y, radius=R, color="blue", name="chess"):
@@ -186,21 +187,47 @@ class TerminalUI(UI):
 
     name = "TerminalUI"
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, board_shape):
+        super().__init__(board_shape)
         self._init_board()
 
     def _init_board(self):
-        for i in range(WIDTH):
-            for j in range(HEIGHT):
+        # 首行标号
+        for j in range(self.height):
+            print(f"\t{j}", end="")
+        print()
+
+        # 棋盘数据
+        for i in range(self.width):
+            print(f"{i}", end="")
+            for j in range(self.height):
                 print("\t_", end="")
+            print(f"\t{i}", end="")
             print()
 
+        # 末行标号
+        for j in range(self.height):
+            print(f"\t{j}", end="")
+        print()
+
     def render(self, board, last_move):
-        for i in range(WIDTH):
+        # 首行标号
+        for j in range(self.height):
+            print(f"\t{j}", end="")
+        print()
+
+        # 棋盘数据
+        for i in range(self.width):
+            print(f"{i}", end="")
             for j in range(HEIGHT):
                 print("\t{}".format({BLACK: "x", WHITE: "o", EMPTY: "_"}[board[i, j]]), end="")
+            print(f"\t{i}", end="")
             print()
+        print()
+
+        # 末行标号
+        for j in range(self.height):
+            print(f"\t{j}", end="")
         print()
 
     def message(self, message):
@@ -220,8 +247,8 @@ class HeadlessUI(UI):
 
     name = "HeadlessUI"
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, board_shape):
+        super().__init__(board_shape)
 
     def render(self, board, last_move):
         pass

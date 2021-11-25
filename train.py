@@ -12,24 +12,21 @@ from play import Game, MCTSAlphaZeroPlayer, MCTSPlayer
 from policy import AlphaZeroError
 from ui import HeadlessUI
 
-parser = argparse.ArgumentParser(description="Gomoku AlphaZero")
-parser.add_argument("--resume", action="store_true", help="恢复模型继续训练")
-args = parser.parse_args()
-
 
 class DataAugmentor:
     """数据增强器
     对原数据进行旋转 + 对称，共八种增强方式"""
 
-    def __init__(self, rotate=True, flip=True):
-        self.rotate = rotate
+    def __init__(self, board_shape, rotate=True, flip=True):
+        self.board_shape = board_shape
+        self.rotate = rotate and board_shape[0] == board_shape[1]
         self.flip = flip
 
     def __call__(self, data_batch):
         data_batch_aug = []
         for state, mcts_prob, reward in data_batch:
             state_aug = state
-            mcts_prob_aug = mcts_prob.reshape(WIDTH, HEIGHT)
+            mcts_prob_aug = mcts_prob.reshape(self.board_shape)
             if self.rotate:
                 num_revo = np.random.randint(4)
                 state_aug = np.rot90(state_aug, num_revo)
@@ -45,19 +42,20 @@ class DataAugmentor:
 class AlphaZeroMetric:
     """AlphaZero 性能评估器"""
 
-    def __init__(self, n_playout=400):
+    def __init__(self, board_shape, n_playout=400):
         self.n_playout = n_playout
         self.n_playout_mcts = 1000
         self.best_score = -np.inf
+        self.board_shape = board_shape
 
     def __call__(self, weights, episode=0, n_games=10):
         assert n_games % 2 == 0
 
-        mcts_alphazero_player = MCTSAlphaZeroPlayer(c_puct=5, n_playout=self.n_playout)
-        mcts_alphazero_player.model.build(input_shape=(None, WIDTH, HEIGHT, CHANNELS))
+        mcts_alphazero_player = MCTSAlphaZeroPlayer(c_puct=5, n_playout=self.n_playout, board_shape=self.board_shape)
+        mcts_alphazero_player.model.build(input_shape=(None, *self.board_shape, CHANNELS))
         mcts_alphazero_player.model.set_weights(weights)
-        mcts_player = MCTSPlayer(c_puct=5, n_playout=self.n_playout_mcts)
-        game = Game(mcts_alphazero_player, mcts_player, HeadlessUI())
+        mcts_player = MCTSPlayer(c_puct=5, n_playout=self.n_playout_mcts, board_shape=self.board_shape)
+        game = Game(mcts_alphazero_player, mcts_player, board_shape=self.board_shape, ui=HeadlessUI(self.board_shape))
         scores = {WIN: 0, LOSE: 0, TIE: 0}
         score = 0.0
         for idx in range(n_games):
@@ -84,24 +82,41 @@ class AlphaZeroMetric:
 
 
 class Worker:
-    def __init__(self):
-        self.player = MCTSAlphaZeroPlayer(c_puct=5, n_playout=400)
+    def __init__(
+        self,
+        board_shape,
+        resume=False,
+        weights_file=MODEL_FILE,
+        buffer_file=BUFFER_FILE,
+        lr=LEARNING_RATE,
+        freeze_cnn=False,
+    ):
+        self.weights_file = weights_file
+        self.buffer_file = buffer_file
+        self.board_shape = board_shape
+        self.width, self.height = board_shape
+        self.player = MCTSAlphaZeroPlayer(c_puct=5, n_playout=400, board_shape=board_shape)
         self.model = self.player.model
-        self.model.build(input_shape=(None, WIDTH, HEIGHT, CHANNELS))
-        self.model.summary()
-        self.opt = tf.keras.optimizers.Adam(LEARNING_RATE)
+        self.model.build(input_shape=(None, *board_shape, CHANNELS))
+        self.opt = tf.keras.optimizers.Adam(lr)
         self.loss_object = AlphaZeroError()
         self.mean_loss = tf.keras.metrics.Mean(name="train_loss")
-        self.game = Game(self.player, self.player, HeadlessUI())
-        self.data_aug = DataAugmentor(rotate=True, flip=True)
-        self.metric = AlphaZeroMetric(n_playout=400)
+        self.game = Game(self.player, self.player, board_shape=board_shape, ui=HeadlessUI(board_shape))
+        self.data_aug = DataAugmentor(board_shape, rotate=True, flip=True)
+        self.metric = AlphaZeroMetric(board_shape=board_shape, n_playout=400)
 
-        if args.resume:
-            self.model.load_weights(MODEL_FILE)
+        if resume:
+            self.model.load_weights(self.weights_file)
             print("Loaded model successfully.")
-            if os.path.exists(BUFFER_FILE):
-                self.game.data_buffer.load(BUFFER_FILE)
+            if os.path.exists(self.buffer_file):
+                self.game.data_buffer.load(self.buffer_file)
                 print("Loaded buffer ({} items) successfully.".format(len(self.game.data_buffer)))
+
+        if freeze_cnn:
+            for layer in self.model.cnn_layers:
+                layer.trainable = False
+
+        self.model.summary()
 
     def run(self):
         for episode in range(MAX_EPISODE):
@@ -147,10 +162,27 @@ class Worker:
                 self.mean_loss.reset_states()
                 is_best_score = self.metric(self.model.get_weights(), episode)
                 if is_best_score:
-                    self.model.save_weights(MODEL_FILE)
-                    self.game.data_buffer.save(BUFFER_FILE)
+                    self.model.save_weights(f"data/model-{self.width}x{self.height}#{N_IN_ROW}.h5")
+                    self.game.data_buffer.save(f"data/buffer-{self.width}x{self.height}#{N_IN_ROW}.h5")
 
 
 if __name__ == "__main__":
-    worker = Worker()
+    parser = argparse.ArgumentParser(description="Gomoku AlphaZero")
+    parser.add_argument("--resume", action="store_true", help="恢复模型继续训练")
+    parser.add_argument("--weights", default=MODEL_FILE, help="预训练权重存储位置")
+    parser.add_argument("--buffer", default=BUFFER_FILE, help="经验池存储位置")
+    parser.add_argument("--lr", default=LEARNING_RATE, type=float, help="训练时学习率")
+    parser.add_argument("--width", default=WIDTH, type=int, help="棋盘水平宽度")
+    parser.add_argument("--height", default=HEIGHT, type=int, help="棋盘竖直宽度")
+    parser.add_argument("--freeze-cnn", action="store_true", help="训练时冻结 CNN 部分")
+    args = parser.parse_args()
+
+    worker = Worker(
+        board_shape=(args.width, args.height),
+        resume=args.resume,
+        weights_file=args.weights,
+        buffer_file=args.buffer,
+        lr=args.lr,
+        freeze_cnn=args.freeze_cnn,
+    )
     worker.run()
