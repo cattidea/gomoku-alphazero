@@ -48,18 +48,32 @@ def convert_pretrained_buffer(
     mcts_probs_src = f_src["mcts_probs"][...]
 
     buffer_length = states_src.shape[0]
+    start_width_idx = (dst_width - src_width) // 2
+    start_height_idx = (dst_height - src_height) // 2
+
     states_dst = np.zeros(
         shape=(buffer_length, dst_width, dst_height, CHANNELS),
         dtype=states_src.dtype,
     )
-    states_dst[:, 0:src_width, 0:src_height] = states_src[:]
+    states_dst[
+        :,
+        start_width_idx : start_width_idx + src_width,
+        start_height_idx : start_height_idx + src_height,
+    ] = states_src[:]
+
+    # 最后一根轴只能是全 1 或全 0
+    states_dst[:, :, :, -1] = states_src[:, 0:1, 0:1, -1]
 
     mcts_probs_dst = np.zeros(
         shape=(buffer_length, dst_width * dst_width),
         dtype=mcts_probs_src.dtype,
     )
     mcts_probs_dst = mcts_probs_dst.reshape((buffer_length, dst_width, dst_width))
-    mcts_probs_dst[:, 0:src_width, 0:src_height] = mcts_probs_src[:].reshape((buffer_length, src_width, src_width))
+    mcts_probs_dst[
+        :,
+        start_width_idx : start_width_idx + src_width,
+        start_height_idx : start_height_idx + src_height,
+    ] = mcts_probs_src[:].reshape((buffer_length, src_width, src_width))
     mcts_probs_dst = mcts_probs_dst.reshape((buffer_length, dst_width * dst_width))
 
     f_dst["states"] = states_dst

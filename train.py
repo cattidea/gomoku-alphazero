@@ -119,9 +119,8 @@ class Worker:
         self.model.summary()
 
     def freeze_cnn_layers(self):
-        if self.freeze_cnn:
-            for layer in self.model.cnn_layers:
-                layer.trainable = False
+        for layer in self.model.cnn_layers:
+            layer.trainable = False
 
     def run(self):
         for episode in range(MAX_EPISODE):
