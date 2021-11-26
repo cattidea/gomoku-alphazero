@@ -225,10 +225,16 @@ def get_players(
     weights=MODEL_FILE,
     ai_type="alphazero",
     ai_n_playout=2000,
+    is_selfplay=False,
 ):
+    AiType = partial(MCTSAlphaZeroPlayer, weights=weights) if ai_type == "alphazero" else MCTSPlayer
+    if is_selfplay:
+        assert mode_str == "eve", "只有 eve 模式才可以进行自我对局"
+        player = AiType(n_playout=ai_n_playout, board_shape=(width, height))
+        return (player, player)
+
     modes = mode_str.lower().split("v")
     players = []
-    AiType = partial(MCTSAlphaZeroPlayer, weights=weights) if ai_type == "alphazero" else MCTSPlayer
     for mode in modes:
         players.append(
             Human(board_shape=(width, height))
@@ -252,6 +258,7 @@ if __name__ == "__main__":
         help="AI 类型（alpha-zero/pure-mcts）",
     )
     parser.add_argument("--ai-n-playout", default=2000, type=int, help="AI MCTS 推演步数")
+    parser.add_argument("--selfplay", action="store_true", help="开启 SelfPlay 模式")
     args = parser.parse_args()
 
     ui = {"gui": GUI, "terminal": TerminalUI, "no": HeadlessUI}[args.ui](board_shape=(args.width, args.height))
@@ -262,6 +269,7 @@ if __name__ == "__main__":
         weights=args.weights,
         ai_type=args.ai_type,
         ai_n_playout=args.ai_n_playout,
+        is_selfplay=args.selfplay,
     )
     game = Game(
         player1,
@@ -269,4 +277,4 @@ if __name__ == "__main__":
         board_shape=(args.width, args.height),
         ui=ui,
     )
-    game.start(is_selfplay=False)
+    game.start(is_selfplay=args.selfplay)
