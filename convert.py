@@ -86,6 +86,10 @@ def convert_pretrained_buffer(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gomoku AlphaZero Weights Converter")
+    parser.add_argument("--src-width", default=8, type=int, help="源棋盘水平宽度")
+    parser.add_argument("--src-height", default=8, type=int, help="源棋盘竖直宽度")
+    parser.add_argument("--dst-width", default=15, type=int, help="目标棋盘水平宽度")
+    parser.add_argument("--dst-height", default=15, type=int, help="目标棋盘竖直宽度")
     parser.add_argument("--src-weights", default="./data/model-8x8#5.h5", help="源预训练权重存储位置")
     parser.add_argument("--dst-weights", default="./data/model-15x15#5.h5", help="目标预训练权重存储位置")
     parser.add_argument("--src-buffer", default="./data/buffer-8x8#5.h5", help="源经验池存储位置")
@@ -96,17 +100,17 @@ if __name__ == "__main__":
     convert_pretrained_weights(
         args.src_weights,
         args.dst_weights,
-        src_width=8,
-        dst_width=15,
-        src_height=8,
-        dst_height=15,
+        src_width=args.src_width,
+        dst_width=args.dst_width,
+        src_height=args.src_height,
+        dst_height=args.dst_height,
     )
 
     convert_pretrained_buffer(
         args.src_buffer,
         args.dst_buffer,
-        src_width=8,
-        dst_width=15,
-        src_height=8,
-        dst_height=15,
+        src_width=args.src_width,
+        dst_width=args.dst_width,
+        src_height=args.src_height,
+        dst_height=args.dst_height,
     )
